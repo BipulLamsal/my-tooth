@@ -1,27 +1,35 @@
 use blurz::{BluetoothAdapter, BluetoothDevice};
-// use daemonize::Daemonize;
 use dbus::blocking::Connection;
+use std::time::Duration;
 
-use std::{fs::File, time::Duration};
 const DEVICE_MAC: &str = "dev_6E_EE_82_0F_45_86";
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // let stdout = File::create("/tmp/mytooth.out")?;
     // let stderr = File::create("/tmp/mytooth.err")?;
-    let adapter = BluetoothAdapter::init()?;
+    // let adapter = BluetoothAdapter::init()?;
     let mut controller = true;
-    while adapter.is_powered()? {
+    println!("Deamon Running!");
+    loop {
         let bluetooth_device = BluetoothDevice::new(format!("/org/bluez/hci0/{}", DEVICE_MAC));
-        if !bluetooth_device.is_connected()? && controller {
-            pause_audio_process()?;
-            controller = false;
-        }
+        // println!("Status - {}", controller);
+        let bluetooth_adapter = BluetoothAdapter::init()?;
         if bluetooth_device.is_connected()? {
             controller = true;
         }
-    }
-    Ok(())
-}
 
+        if !bluetooth_device.is_connected()? && controller {
+            pause_audio_process()?;
+            println!("Audio Process Paused");
+            controller = false;
+        }
+        if !bluetooth_adapter.is_powered()? && controller {
+            pause_audio_process()?;
+            controller = false
+        }
+        // introduced delay
+        std::thread::sleep(std::time::Duration::from_secs(30))
+    }
+}
 fn pause_audio_process() -> Result<(), Box<dyn std::error::Error>> {
     let conn = Connection::new_session()?;
     let dbus_proxy = conn.with_proxy("org.freedesktop.DBus", "/", Duration::from_millis(5000));
